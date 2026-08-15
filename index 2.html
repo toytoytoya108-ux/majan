@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#0F2A21">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="符翻堂">
+<meta name="description" content="麻雀の符・翻・点数を反射で答えられるようにするトレーニングアプリ">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>符翻堂 — 点数計算トレーニング</title>
+<style>
+:root{
+  --felt:#0F2A21; --felt-2:#16362A; --raise:#1E4636; --line:#2C5C48;
+  --ivory:#F3EDDF; --tile-edge:#C4B99C; --ink:#20302C;
+  --red:#D93B30; --gold:#E3B44A; --jade:#59C39A;
+  --mute:#8FB3A2;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho",YuMincho,"Noto Serif JP",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:var(--felt);
+  background-image:radial-gradient(120% 60% at 50% -10%,#1B4234 0%,var(--felt) 60%);
+  color:var(--ivory);font-family:var(--sans);
+  font-feature-settings:"palt";
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior:none;
+}
+#app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 92px);}
+button{font-family:inherit;color:inherit;border:0;background:none;cursor:pointer}
+
+/* ---------- ヘッダー ---------- */
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.brand{font-family:var(--mincho);font-size:19px;letter-spacing:.16em;display:flex;align-items:center;gap:8px}
+.brand .seal{width:26px;height:26px;border-radius:5px;background:var(--red);color:#fff;font-size:15px;
+  display:grid;place-items:center;font-family:var(--mincho);box-shadow:0 2px 0 #9C221A}
+.streak{font-size:12px;color:var(--mute);letter-spacing:.06em;text-align:right;line-height:1.5}
+.streak b{color:var(--gold);font-size:16px;font-variant-numeric:tabular-nums}
+
+/* ---------- 共通カード ---------- */
+.card{background:var(--felt-2);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--mute);margin:0 0 10px}
+h2.sec{font-family:var(--mincho);font-size:17px;margin:22px 0 10px;letter-spacing:.1em}
+
+/* ---------- 問題札 ---------- */
+.q{background:linear-gradient(#FBF7EC,#EDE5D2);color:var(--ink);border-radius:var(--r);
+  padding:20px 16px;text-align:center;box-shadow:0 3px 0 var(--tile-edge),0 10px 24px rgba(0,0,0,.3);
+  position:relative;overflow:hidden}
+.q::after{content:"";position:absolute;inset:6px;border:1px solid rgba(32,48,44,.13);border-radius:8px;pointer-events:none}
+.q .cond{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:14px}
+.tag{font-size:12px;padding:4px 10px;border-radius:999px;background:rgba(32,48,44,.08);letter-spacing:.06em}
+.tag.dealer{background:var(--red);color:#fff}
+.tag.win{background:var(--ink);color:var(--ivory)}
+.figure{font-family:var(--mincho);font-size:40px;line-height:1.15;letter-spacing:.02em}
+.figure .x{font-size:22px;opacity:.5;margin:0 6px}
+.ask{font-size:13px;color:#5C6B65;margin-top:8px;letter-spacing:.08em}
+.timer{height:4px;background:rgba(32,48,44,.12);border-radius:2px;margin-top:14px;overflow:hidden}
+.timer i{display:block;height:100%;background:var(--red);width:100%;border-radius:2px}
+
+/* ---------- 選択肢 ---------- */
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.opt{background:var(--raise);border:1px solid var(--line);border-radius:12px;padding:18px 6px;
+  font-size:23px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em;
+  transition:transform .08s,background .15s;min-height:64px}
+.opt:active{transform:scale(.97)}
+.opt.ok{background:var(--jade);border-color:var(--jade);color:#06231A}
+.opt.ng{background:var(--red);border-color:var(--red);color:#fff}
+.opt.dim{opacity:.35}
+.opt small{display:block;font-size:11px;font-weight:400;opacity:.75;letter-spacing:.08em;margin-top:3px}
+
+/* ---------- 判定 ---------- */
+.verdict{margin-top:14px;border-radius:var(--r);padding:16px;border:1px solid var(--line);background:var(--felt-2)}
+.verdict.win{border-color:var(--jade)}
+.verdict.lose{border-color:var(--red)}
+.vhead{font-family:var(--mincho);font-size:22px;letter-spacing:.1em;margin-bottom:2px}
+.verdict.win .vhead{color:var(--jade)}
+.verdict.lose .vhead{color:var(--red)}
+.vnote{font-size:13px;color:var(--mute);line-height:1.7}
+
+/* ---------- 流れ（役→翻→符→点数） ---------- */
+.flow{margin-top:14px;display:flex;flex-direction:column;align-items:stretch;gap:0}
+.step{opacity:0;transform:translateY(8px);animation:rise .32s forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 12px;
+  background:var(--raise);border-radius:9px;font-size:14px}
+.row b{font-variant-numeric:tabular-nums;font-size:15px}
+.arrow{text-align:center;color:var(--mute);font-size:13px;line-height:1;padding:5px 0}
+.sum{display:flex;justify-content:center;align-items:baseline;gap:10px;padding:10px;
+  background:var(--raise);border-radius:9px;font-family:var(--mincho);font-size:26px}
+.final{text-align:center;padding:16px 10px;border-radius:11px;background:var(--gold);color:#3A2A05}
+.final .big{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.final .lbl{font-size:12px;letter-spacing:.18em}
+.final.yakuman{background:var(--red);color:#fff}
+
+/* ---------- 符コイン ---------- */
+.coins{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:4px 0 2px}
+.coin{background:var(--ivory);color:var(--ink);border-radius:999px;padding:8px 12px;font-size:13px;
+  box-shadow:0 2px 0 var(--tile-edge);display:flex;align-items:center;gap:7px;
+  opacity:0;transform:scale(.8);animation:pop .28s forwards}
+@keyframes pop{to{opacity:1;transform:none}}
+.coin b{font-size:16px;font-variant-numeric:tabular-nums}
+.coin.base{background:var(--gold)}
+
+/* ---------- 牌 ---------- */
+.hand{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin:2px 0 12px}
+.tile{width:30px;height:42px;border-radius:5px;background:linear-gradient(#FFFDF6,#EBE3CE);
+  color:var(--ink);border:1px solid var(--tile-edge);box-shadow:0 2px 0 #C0B394;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;
+  font-family:var(--mincho);font-size:15px;font-weight:600}
+.tile .s{font-size:9px;opacity:.6;margin-top:2px;letter-spacing:.04em}
+.tile.honor{font-size:17px}
+.tile.red{color:var(--red)}
+.tile.back{background:linear-gradient(#2E6C55,#1E4636);border-color:#14352A;color:transparent}
+
+/* ---------- 暗記表 ---------- */
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:9px 4px;text-align:center;font-size:15px;border-bottom:1px solid var(--line)}
+.tbl th{font-size:11px;color:var(--mute);letter-spacing:.1em;font-weight:400}
+.tbl td.fu{font-family:var(--mincho);font-size:15px;color:var(--gold)}
+.tbl td.man{color:var(--gold);font-weight:700}
+.chain{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:10px 2px;scrollbar-width:none}
+.chain::-webkit-scrollbar{display:none}
+.chain span{background:var(--raise);border-radius:9px;padding:9px 12px;font-size:17px;font-weight:700;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.chain span.last{background:var(--gold);color:#3A2A05}
+.chain i{color:var(--mute);font-style:normal;font-size:12px}
+
+/* ---------- 成績 ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--raise);border-radius:11px;padding:13px}
+.stat .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.stat .l{font-size:11px;color:var(--mute);letter-spacing:.1em;margin-top:2px}
+.bar{height:7px;background:var(--raise);border-radius:4px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--jade)}
+.bar.bad i{background:var(--red)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px}
+.item .k{font-family:var(--mincho);letter-spacing:.06em}
+.item .v{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+
+/* ---------- 汎用ボタン ---------- */
+.btn{display:block;width:100%;background:var(--gold);color:#3A2A05;border-radius:12px;
+  padding:16px;font-size:17px;font-weight:700;letter-spacing:.08em;margin-top:14px}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--ivory);font-weight:500;font-size:14px;padding:13px}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.seg button{border:1px solid var(--line);border-radius:999px;padding:8px 13px;font-size:13px;color:var(--mute)}
+.seg button.on{background:var(--ivory);color:var(--ink);border-color:var(--ivory);font-weight:700}
+
+/* ---------- タブ ---------- */
+.tabs{position:fixed;left:0;right:0;bottom:0;background:rgba(11,32,25,.94);
+  backdrop-filter:blur(12px);border-top:1px solid var(--line);
+  padding:8px 6px calc(env(safe-area-inset-bottom) + 8px);z-index:50}
+.tabs-in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
+.tab{padding:7px 2px;border-radius:10px;text-align:center;color:var(--mute);font-size:10px;letter-spacing:.04em}
+.tab .g{display:block;font-family:var(--mincho);font-size:19px;line-height:1.25}
+.tab.on{color:var(--gold);background:rgba(227,180,74,.1)}
+.hide{display:none !important}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="brand"><span class="seal">符</span>符翻堂</div>
+    <div class="streak">連続 <b id="streak">0</b><br><span id="today">今日 0問</span></div>
+  </div>
+  <div id="view"></div>
+</div>
+
+<nav class="tabs"><div class="tabs-in" id="tabs"></div></nav>
+
+<script>
+/* ==========================================================
+   1. 点数計算エンジン（UI非依存 / 単体テスト可能）
+   ========================================================== */
+const Engine = (() => {
+  const ceil100 = n => Math.ceil(n / 100) * 100;
+
+  function limitClass(han){
+    if(han>=13) return {name:'役満',base:8000,key:'yakuman'};
+    if(han>=11) return {name:'三倍満',base:6000,key:'sanbaiman'};
+    if(han>=8)  return {name:'倍満',base:4000,key:'baiman'};
+    if(han>=6)  return {name:'跳満',base:3000,key:'haneman'};
+    if(han>=5)  return {name:'満貫',base:2000,key:'mangan'};
+    return null;
+  }
+
+  function calculateScore({playerType,winType,han,fu,yakumanMultiplier=0,kiriageMangan=false,honba=0}){
+    const isDealer = playerType==='dealer', isTsumo = winType==='tsumo';
+    let basePoints, rank=null, rankKey='normal', capped=false;
+
+    if(yakumanMultiplier>0){
+      basePoints = 8000*yakumanMultiplier;
+      rank = yakumanMultiplier===1?'役満':yakumanMultiplier+'倍役満';
+      rankKey='yakuman'; capped=true;
+    } else {
+      const lim = limitClass(han);
+      if(lim){ basePoints=lim.base; rank=lim.name; rankKey=lim.key; capped=true; }
+      else{
+        const raw = fu*Math.pow(2,2+han);
+        if(raw>=2000 || (kiriageMangan && ((han===4&&fu===30)||(han===3&&fu===60)))){
+          basePoints=2000; rank='満貫'; rankKey='mangan'; capped=true;
+        } else { basePoints=raw; }
+      }
+    }
+
+    let fromDealer=0, fromChild=0, fromRonPlayer=0, total=0;
+    if(isTsumo){
+      if(isDealer){ fromChild=ceil100(basePoints*2); total=fromChild*3; }
+      else{ fromDealer=ceil100(basePoints*2); fromChild=ceil100(basePoints); total=fromDealer+fromChild*2; }
+    } else {
+      fromRonPlayer = ceil100(basePoints*(isDealer?6:4));
+      total = fromRonPlayer;
+    }
+    if(honba>0){
+      if(isTsumo){ if(!isDealer) fromDealer+=honba*100; fromChild+=honba*100; }
+      else fromRonPlayer+=honba*300;
+      total += honba*300;
+    }
+    const notation = isTsumo
+      ? (isDealer ? fromChild+'オール' : fromDealer+'/'+fromChild)
+      : String(fromRonPlayer);
+
+    return {basePoints,rank,rankKey,capped,total,fromDealer,fromChild,fromRonPlayer,notation,isDealer,isTsumo,han,fu};
+  }
+
+  const WAIT_FU={ryanmen:0,shanpon:0,kanchan:2,penchan:2,tanki:2};
+  const WAIT_LABEL={ryanmen:'両面待ち',shanpon:'シャンポン待ち',kanchan:'カンチャン待ち',penchan:'ペンチャン待ち',tanki:'単騎待ち'};
+
+  function meldFu({type,terminal,open}){
+    if(type==='shuntsu') return 0;
+    if(type==='koutsu')  return open ? (terminal?4:2) : (terminal?8:4);
+    if(type==='kantsu')  return open ? (terminal?16:8) : (terminal?32:16);
+    return 0;
+  }
+
+  function calculateFu({menzen,winType,melds=[],head='other',wait='ryanmen',pinfu=false,chiitoitsu=false}){
+    if(chiitoitsu) return {fu:25,rawFu:25,parts:[{label:'七対子（固定）',fu:25}]};
+    if(pinfu&&winType==='tsumo') return {fu:20,rawFu:20,parts:[{label:'平和ツモ（固定）',fu:20}]};
+    const parts=[{label:'副底（基本符）',fu:20,base:true}];
+    if(menzen&&winType==='ron') parts.push({label:'門前ロン',fu:10});
+    if(winType==='tsumo') parts.push({label:'ツモ',fu:2});
+    melds.forEach(m=>{ const f=meldFu(m); if(f>0) parts.push({label:m.label,fu:f}); });
+    if(head==='yakuhai') parts.push({label:'役牌の雀頭',fu:2});
+    if(WAIT_FU[wait]) parts.push({label:WAIT_LABEL[wait],fu:WAIT_FU[wait]});
+    const rawFu=parts.reduce((s,x)=>s+x.fu,0);
+    return {fu:Math.ceil(rawFu/10)*10,rawFu,parts};
+  }
+
+  return {calculateScore,calculateFu,meldFu,ceil100,limitClass,WAIT_FU,WAIT_LABEL};
+})();
+
+/* ==========================================================
+   2. 保存（端末内・オフライン可）
+   ========================================================== */
+const Store = (() => {
+  const KEY = 'fuhando:v1';
+  const EMPTY = {stats:{}, log:[], wrong:{}, streak:0, best:0, days:{}, flashBest:0};
+  let mem = Object.assign({}, EMPTY);
+  let backend = 'memory';   // 'local' | 'bridge' | 'memory'
+
+  async function load(){
+    // 1) 通常のブラウザ / GitHub Pages
+    try{
+      const raw = localStorage.getItem(KEY);
+      backend = 'local';
+      if(raw) mem = Object.assign(mem, JSON.parse(raw));
+      return mem;
+    }catch(e){ /* プライベートモード等で使えない場合は次へ */ }
+    // 2) 保存ブリッジがある環境
+    try{
+      const r = await window.storage.get(KEY);
+      backend = 'bridge';
+      if(r && r.value) mem = Object.assign(mem, JSON.parse(r.value));
+      return mem;
+    }catch(e){ /* 3) メモリのみ（セッション内保持） */ }
+    return mem;
+  }
+
+  let t = null;
+  function save(){
+    clearTimeout(t);
+    t = setTimeout(async () => {
+      const json = JSON.stringify(mem);
+      try{
+        if(backend === 'local'){ localStorage.setItem(KEY, json); return; }
+        if(backend === 'bridge'){ await window.storage.set(KEY, json); }
+      }catch(e){ backend = 'memory'; }
+    }, 400);
+  }
+
+  function clear(){
+    mem = Object.assign({}, EMPTY, {stats:{}, wrong:{}, days:{}});
+    try{ if(backend === 'local') localStorage.removeItem(KEY); }catch(e){}
+    save();
+    return mem;
+  }
+
+  return {get: () => mem, load, save, clear, backend: () => backend};
+})();
+
+const todayKey = () => new Date().toISOString().slice(0,10);
+
+function record(kind, key, correct, ms){
+  const m = Store.get();
+  const s = m.stats[kind+'|'+key] || (m.stats[kind+'|'+key]={n:0,ok:0,ms:0});
+  s.n++; s.ms+=ms; if(correct) s.ok++;
+  if(correct){ m.streak++; m.best=Math.max(m.best,m.streak); }
+  else { m.streak=0; m.wrong[kind+'|'+key]=(m.wrong[kind+'|'+key]||0)+1; }
+  if(correct && m.wrong[kind+'|'+key]) { m.wrong[kind+'|'+key]--; if(m.wrong[kind+'|'+key]<=0) delete m.wrong[kind+'|'+key]; }
+  m.days[todayKey()] = (m.days[todayKey()]||0)+1;
+  Store.save(); paintHeader();
+}
+function paintHeader(){
+  const m=Store.get();
+  document.getElementById('streak').textContent=m.streak;
+  document.getElementById('today').textContent='今日 '+(m.days[todayKey()]||0)+'問';
+}
+
+/* ==========================================================
+   3. 出題データ
+   ========================================================== */
+const FU_LIST=[20,25,30,40,50,60,70];
+const rnd = a => a[Math.floor(Math.random()*a.length)];
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(v=>v[1]);
+const yen = n => n.toLocaleString('ja-JP');
+
+const LEVELS=[
+  {lv:1,name:'子のロン・基本',   fus:[30,40],        hans:[1,2,3],     types:['child'],          wins:['ron'],           sec:0},
+  {lv:2,name:'親と子',           fus:[30,40,50],     hans:[1,2,3],     types:['child','dealer'], wins:['ron'],           sec:0},
+  {lv:3,name:'ツモも入る',       fus:[30,40,50,60],  hans:[1,2,3,4],   types:['child','dealer'], wins:['ron','tsumo'],   sec:0},
+  {lv:4,name:'満貫と特殊符',     fus:FU_LIST,        hans:[2,3,4,5,6], types:['child','dealer'], wins:['ron','tsumo'],   sec:0},
+  {lv:5,name:'鬼モード（15秒）', fus:FU_LIST,        hans:[1,2,3,4,5,6,7,8], types:['child','dealer'], wins:['ron','tsumo'], sec:15},
+];
+
+function validCombo(fu,han,win){
+  if(fu===20) return win==='tsumo' && han>=2;   // 平和ツモのみ
+  if(fu===25) return han>=2;                    // 七対子
+  return true;
+}
+function makeScoreQ(level){
+  const L=LEVELS[level-1];
+  let fu,han,win,type,guard=0;
+  do{ fu=rnd(L.fus); han=rnd(L.hans); win=rnd(L.wins); type=rnd(L.types); }
+  while(!validCombo(fu,han,win) && ++guard<80);
+  if(!validCombo(fu,han,win)){ fu=30; han=3; }
+  return buildScoreQ(fu,han,win,type,L.sec);
+}
+function buildScoreQ(fu,han,win,type,sec){
+  const r = Engine.calculateScore({playerType:type,winType:win,han,fu});
+  const set = new Set([r.notation]);
+  const near=[], far=[];
+  [-1,1,2].forEach(d=>{ const h=han+d; if(h>=1&&h<=13&&validCombo(fu,h,win)) near.push(Engine.calculateScore({playerType:type,winType:win,han:h,fu}).notation); });
+  FU_LIST.forEach(f=>{ if(f!==fu&&validCombo(f,han,win)) near.push(Engine.calculateScore({playerType:type,winType:win,han,fu:f}).notation); });
+  FU_LIST.forEach(f=>{ for(let h=1;h<=6;h++){ if(validCombo(f,h,win)) far.push(Engine.calculateScore({playerType:type,winType:win,han:h,fu:f}).notation); } });
+  shuffle(near).forEach(n=>{ if(set.size<4) set.add(n); });
+  shuffle(far).forEach(n=>{ if(set.size<4) set.add(n); });
+  return {kind:'score',fu,han,win,type,sec,answer:r.notation,result:r,options:shuffle([...set])};
+}
+
+/* --- 符パーツ --- */
+const MELD_Q=[
+  {q:'中張牌（2〜8）の明刻',fu:2,tiles:['5p','5p','5p'],open:true},
+  {q:'中張牌（2〜8）の暗刻',fu:4,tiles:['3s','3s','3s'],open:false},
+  {q:'么九牌・字牌の明刻',fu:4,tiles:['1m','1m','1m'],open:true},
+  {q:'么九牌・字牌の暗刻',fu:8,tiles:['南','南','南'],open:false},
+  {q:'中張牌の明槓',fu:8,tiles:['6p','6p','6p','6p'],open:true},
+  {q:'中張牌の暗槓',fu:16,tiles:['4m','4m','4m','4m'],open:false},
+  {q:'么九牌・字牌の明槓',fu:16,tiles:['9s','9s','9s','9s'],open:true},
+  {q:'么九牌・字牌の暗槓',fu:32,tiles:['中','中','中','中'],open:false},
+  {q:'順子（数牌の並び）',fu:0,tiles:['3m','4m','5m'],open:false},
+  {q:'カンチャン待ち',fu:2,tiles:['4p','?','6p'],open:false},
+  {q:'ペンチャン待ち',fu:2,tiles:['1s','2s','?'],open:false},
+  {q:'単騎待ち',fu:2,tiles:['西','?'],open:false},
+  {q:'両面待ち',fu:0,tiles:['3p','4p'],open:false},
+  {q:'シャンポン待ち',fu:0,tiles:['7m','7m'],open:false},
+  {q:'役牌の雀頭',fu:2,tiles:['發','發'],open:false},
+  {q:'数牌の雀頭',fu:0,tiles:['2s','2s'],open:false},
+  {q:'門前ロンの加符',fu:10,tiles:[],open:false},
+  {q:'ツモの加符',fu:2,tiles:[],open:false},
+  {q:'副底（どんな手にも付く基本符）',fu:20,tiles:[],open:false},
+];
+function makePartQ(){
+  const item=rnd(MELD_Q);
+  const pool=[0,2,4,8,10,16,20,32];
+  const set=new Set([item.fu]);
+  shuffle(pool).forEach(v=>{ if(set.size<4) set.add(v); });
+  return {kind:'fupart',item,answer:item.fu+'符',options:shuffle([...set]).map(v=>v+'符')};
+}
+function makeFuSumQ(){
+  const menzen = Math.random()<0.7;
+  const win = Math.random()<0.5?'ron':'tsumo';
+  const melds=[];
+  const n=1+Math.floor(Math.random()*2);
+  for(let i=0;i<n;i++){
+    const terminal=Math.random()<0.45, open=!menzen&&Math.random()<0.6;
+    const type=Math.random()<0.85?'koutsu':'kantsu';
+    melds.push({type,terminal,open,
+      label:(terminal?'么九牌・字牌の':'中張牌の')+(type==='kantsu'?(open?'明槓':'暗槓'):(open?'明刻':'暗刻'))});
+  }
+  const head=Math.random()<0.4?'yakuhai':'other';
+  const wait=rnd(['ryanmen','ryanmen','kanchan','penchan','tanki','shanpon']);
+  const r=Engine.calculateFu({menzen,winType:win,melds,head,wait});
+  const set=new Set([r.fu]);
+  [r.fu-10,r.fu+10,r.fu+20,r.fu-20,30,40].forEach(v=>{ if(v>=20&&set.size<4) set.add(v); });
+  return {kind:'fusum',menzen,win,melds,head,wait,result:r,answer:r.fu+'符',options:shuffle([...set]).map(v=>v+'符')};
+}
+
+/* ==========================================================
+   4. 画面
+   ========================================================== */
+const TABS=[
+  {id:'quiz', g:'点', label:'点数クイズ'},
+  {id:'fu',   g:'符', label:'符計算'},
+  {id:'flash',g:'閃', label:'フラッシュ'},
+  {id:'table',g:'表', label:'暗記表'},
+  {id:'stats',g:'録', label:'成績'},
+];
+let tab='quiz';
+const view=document.getElementById('view');
+
+function renderTabs(){
+  document.getElementById('tabs').innerHTML = TABS.map(t=>
+    `<button class="tab ${t.id===tab?'on':''}" data-tab="${t.id}"><span class="g">${t.g}</span>${t.label}</button>`).join('');
+}
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('[data-tab]'); if(!b) return;
+  tab=b.dataset.tab; renderTabs(); render(); window.scrollTo(0,0);
+});
+
+function tileHTML(code){
+  if(code==='?') return `<div class="tile back">?</div>`;
+  const honors={'東':1,'南':1,'西':1,'北':1,'白':1,'發':1,'中':1};
+  if(honors[code]) return `<div class="tile honor ${code==='中'||code==='發'?'red':''}">${code}</div>`;
+  const n=code[0], s=code[1];
+  const suit={m:'萬',p:'筒',s:'索'}[s];
+  return `<div class="tile">${n}<span class="s">${suit}</span></div>`;
+}
+const tilesHTML = arr => arr.length? `<div class="hand">${arr.map(tileHTML).join('')}</div>`:'';
+
+/* ---------- 共通：問題進行 ---------- */
+let cur=null, answered=false, t0=0, timerId=null;
+
+function optionsHTML(opts,suffix){
+  return `<div class="opts">${opts.map((o,i)=>
+    `<button class="opt" data-i="${i}">${o}${suffix?`<small>${suffix}</small>`:''}</button>`).join('')}</div>`;
+}
+
+function startTimer(sec){
+  clearInterval(timerId); if(!sec) return;
+  const bar=document.querySelector('.timer i'); if(!bar) return;
+  const end=Date.now()+sec*1000;
+  timerId=setInterval(()=>{
+    const left=Math.max(0,end-Date.now());
+    bar.style.width=(left/(sec*1000)*100)+'%';
+    if(left<=0){ clearInterval(timerId); if(!answered) answer(-1); }
+  },80);
+}
+
+/* ---------- 点数クイズ ---------- */
+let level=1, focusWeak=false;
+function renderQuiz(){
+  cur = focusWeak ? weakQuestion() || makeScoreQ(level) : makeScoreQ(level);
+  answered=false; t0=Date.now();
+  const q=cur;
+  view.innerHTML = `
+    <div class="seg">
+      ${LEVELS.map(L=>`<button class="${L.lv===level?'on':''}" data-lv="${L.lv}">Lv.${L.lv}</button>`).join('')}
+      <button class="${focusWeak?'on':''}" data-weak="1">苦手復習</button>
+    </div>
+    <p class="eyebrow">${focusWeak?'苦手な組み合わせを優先出題':LEVELS[level-1].name}</p>
+    <div class="q">
+      <div class="cond">
+        <span class="tag ${q.type==='dealer'?'dealer':''}">${q.type==='dealer'?'親':'子'}</span>
+        <span class="tag win">${q.win==='ron'?'ロン':'ツモ'}</span>
+      </div>
+      <div class="figure">${q.fu}符<span class="x">×</span>${q.han}翻</div>
+      <div class="ask">${q.win==='tsumo'?'いくら受け取る？（親/子 の支払い）':'いくらもらえる？'}</div>
+      ${q.sec?`<div class="timer"><i></i></div>`:''}
+    </div>
+    ${optionsHTML(q.options, q.win==='tsumo'?(q.type==='dealer'?'各家から':'親/子'):'点')}
+    <div id="after"></div>`;
+  bindOpts(); startTimer(q.sec);
+}
+function weakQuestion(){
+  const m=Store.get();
+  const keys=Object.keys(m.wrong).filter(k=>k.startsWith('score|'));
+  if(!keys.length) return null;
+  const [,key]=rnd(keys).split('|');
+  const [fu,han,win,type]=key.split(':');
+  return buildScoreQ(+fu,+han,win,type,0);
+}
+
+function bindOpts(){
+  view.querySelectorAll('.opt').forEach(b=>b.addEventListener('click',()=>answer(+b.dataset.i)));
+  view.querySelectorAll('[data-lv]').forEach(b=>b.addEventListener('click',()=>{level=+b.dataset.lv;focusWeak=false;render();}));
+  const w=view.querySelector('[data-weak]'); if(w) w.addEventListener('click',()=>{focusWeak=!focusWeak;render();});
+}
+
+function answer(i){
+  if(answered) return; answered=true; clearInterval(timerId);
+  const ms=Date.now()-t0, q=cur;
+  const picked = i>=0 ? q.options[i] : null;
+  const ok = picked===q.answer;
+  view.querySelectorAll('.opt').forEach((b,idx)=>{
+    if(q.options[idx]===q.answer) b.classList.add('ok');
+    else if(idx===i) b.classList.add('ng');
+    else b.classList.add('dim');
+  });
+  const key = q.kind==='score' ? `${q.fu}:${q.han}:${q.win}:${q.type}` :
+              q.kind==='fupart' ? q.item.q : `${q.result.fu}`;
+  record(q.kind, key, ok, ms);
+  const after=document.getElementById('after');
+  after.innerHTML = (q.kind==='score'? scoreVerdict(q,ok,i<0) : fuVerdict(q,ok,i<0))
+    + `<button class="btn" id="next">つぎの問題</button>`;
+  document.getElementById('next').addEventListener('click',render);
+  after.scrollIntoView?.({behavior:'smooth',block:'nearest'});
+}
+
+/* ---------- 解説（役→翻→符→点数） ---------- */
+let showDetail=false;
+function scoreVerdict(q,ok,timeout){
+  const r=q.result, d=(n)=>`style="animation-delay:${n*.12}s"`;
+  const payLine = q.win==='tsumo'
+    ? (q.type==='dealer' ? `子3人から ${yen(r.fromChild)}点ずつ` : `親 ${yen(r.fromDealer)} / 子 ${yen(r.fromChild)}`)
+    : `放銃者から ${yen(r.total)}点`;
+  const mult = q.win==='ron' ? (q.type==='dealer'?'×6（親のロン）':'×4（子のロン）')
+             : (q.type==='dealer'?'×2（親のツモ・各家）':'×2（親）・×1（子）');
+  const detail = r.capped
+    ? `<div class="row"><span>${r.rank}は符に関係なく基本点固定</span><b>${yen(r.basePoints)}</b></div>`
+    : `<div class="row"><span>基本点 ${q.fu} × 2<sup>(${q.han}+2)</sup></span><b>${yen(r.basePoints)}</b></div>
+       <div class="row" style="margin-top:6px"><span>${mult} → 100点単位に切り上げ</span><b>${r.notation}</b></div>`;
+  return `
+  <div class="verdict ${ok?'win':'lose'}">
+    <div class="vhead">${ok?'正解！':(timeout?'時間切れ':'惜しい！')}</div>
+    <div class="vnote">${ok?'この形は身体で覚えるゾーン。':`正解は <b style="color:var(--ivory)">${q.answer}</b>。${q.fu}符${q.han}翻は暗記でカバーできます。`}</div>
+    <div class="flow">
+      <div class="step" ${d(0)}><div class="row"><span>${q.type==='dealer'?'親':'子'}の${q.win==='ron'?'ロン':'ツモ'}</span><b>${q.fu}符 ${q.han}翻</b></div></div>
+      <div class="step arrow" ${d(1)}>▼</div>
+      <div class="step" ${d(2)}>${detail}</div>
+      <div class="step arrow" ${d(3)}>▼</div>
+      <div class="step final ${r.rankKey==='yakuman'?'yakuman':''}" ${d(4)}>
+        <div class="lbl">${r.rank?r.rank:'合計'}</div>
+        <div class="big">${r.notation}</div>
+        <div class="lbl">${payLine}${q.win==='tsumo'?`　合計 ${yen(r.total)}`:''}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function fuVerdict(q,ok,timeout){
+  if(q.kind==='fupart'){
+    return `<div class="verdict ${ok?'win':'lose'}">
+      <div class="vhead">${ok?'正解！':(timeout?'時間切れ':'ちがう！')}</div>
+      <div class="vnote">${q.item.q} は <b style="color:var(--gold)">${q.item.fu}符</b>。
+      ${q.item.fu>=4?'么九牌（1・9・字牌）と、暗（自分で揃えた）は符が高くなります。':'順子と両面待ち・シャンポン待ちは0符。ここが基本形です。'}</div>
+    </div>`;
+  }
+  const r=q.result;
+  const coins=r.parts.map((p,i)=>
+    `<div class="coin ${p.base?'base':''}" style="animation-delay:${i*.1}s"><span>${p.label}</span><b>${p.fu}</b></div>`).join('');
+  return `<div class="verdict ${ok?'win':'lose'}">
+    <div class="vhead">${ok?'正解！':(timeout?'時間切れ':'惜しい！')}</div>
+    <div class="vnote">${ok?'':'正解は <b style="color:var(--ivory)">'+r.fu+'符</b>。'}符コインを積み上げて確認。</div>
+    <div class="flow">
+      <div class="step"><div class="coins">${coins}</div></div>
+      <div class="step arrow" style="animation-delay:.5s">▼</div>
+      <div class="step sum" style="animation-delay:.6s">合計 <b>${r.rawFu}符</b></div>
+      <div class="step arrow" style="animation-delay:.7s">▼ 10の位に切り上げ</div>
+      <div class="step final" style="animation-delay:.8s"><div class="big">${r.fu}符</div></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- 符計算モード ---------- */
+let fuMode='part';
+function renderFu(){
+  cur = fuMode==='part' ? makePartQ() : makeFuSumQ();
+  answered=false; t0=Date.now();
+  const q=cur;
+  const body = fuMode==='part'
+    ? `<div class="q">
+         ${tilesHTML(q.item.tiles)}
+         <div class="figure" style="font-size:26px">${q.item.q}</div>
+         <div class="ask">これは何符？</div>
+       </div>`
+    : `<div class="q">
+         <div class="cond">
+           <span class="tag">${q.menzen?'門前':'鳴きあり'}</span>
+           <span class="tag win">${q.win==='ron'?'ロン':'ツモ'}</span>
+           <span class="tag">${Engine.WAIT_LABEL[q.wait]}</span>
+           <span class="tag">${q.head==='yakuhai'?'役牌の雀頭':'数牌の雀頭'}</span>
+           ${q.melds.map(m=>`<span class="tag">${m.label}</span>`).join('')}
+         </div>
+         <div class="figure" style="font-size:26px">この手は何符？</div>
+         <div class="ask">副底20符からコインを積み上げよう</div>
+       </div>`;
+  view.innerHTML=`
+    <div class="seg">
+      <button class="${fuMode==='part'?'on':''}" data-fumode="part">パーツ1個</button>
+      <button class="${fuMode==='sum'?'on':''}" data-fumode="sum">合計を出す</button>
+    </div>
+    <p class="eyebrow">${fuMode==='part'?'STEP 1 — 符の値段を覚える':'STEP 2 — 積み上げて切り上げる'}</p>
+    ${body}
+    ${optionsHTML(q.options,'')}
+    <div id="after"></div>`;
+  bindOpts();
+  view.querySelectorAll('[data-fumode]').forEach(b=>b.addEventListener('click',()=>{fuMode=b.dataset.fumode;render();}));
+}
+
+/* ---------- フラッシュ ---------- */
+let flashOn=false, flashLeft=0, flashScore=0, flashTimer=null;
+function renderFlash(){
+  if(!flashOn){
+    const m=Store.get();
+    view.innerHTML=`
+      <p class="eyebrow">60秒アタック</p>
+      <div class="card" style="text-align:center">
+        <div style="font-family:var(--mincho);font-size:22px;letter-spacing:.1em;margin-bottom:6px">符と翻だけ見て、点数を即答</div>
+        <div class="vnote">考えるのではなく、思い出す練習。子のロンに固定して、反射で答えられる形を増やします。</div>
+        <div class="grid2" style="margin-top:14px">
+          <div class="stat"><div class="n">${m.flashBest||0}</div><div class="l">ベスト</div></div>
+          <div class="stat"><div class="n">${m.best||0}</div><div class="l">最高連続正解</div></div>
+        </div>
+        <button class="btn" id="go">はじめる</button>
+      </div>`;
+    document.getElementById('go').addEventListener('click',()=>{
+      flashOn=true; flashScore=0; flashLeft=60;
+      clearInterval(flashTimer);
+      flashTimer=setInterval(()=>{ flashLeft--; const e=document.getElementById('fleft');
+        if(e) e.textContent=flashLeft; if(flashLeft<=0){ clearInterval(flashTimer); endFlash(); } },1000);
+      nextFlash();
+    });
+    return;
+  }
+  nextFlash();
+}
+function nextFlash(){
+  const fu=rnd([30,30,40,40,50,60,25]), hans=[1,2,3,4].filter(h=>validCombo(fu,h,'ron'));
+  const q=buildScoreQ(fu,rnd(hans),'ron','child',0);
+  cur=q; answered=false; t0=Date.now();
+  view.innerHTML=`
+    <div class="top" style="margin-bottom:10px">
+      <div class="streak" style="text-align:left">残り <b id="fleft">${flashLeft}</b> 秒</div>
+      <div class="streak">得点 <b id="fscore">${flashScore}</b></div>
+    </div>
+    <div class="q"><div class="figure">${q.fu}符<span class="x">×</span>${q.han}翻</div>
+    <div class="ask">子のロン — 何点？</div></div>
+    ${optionsHTML(q.options,'点')}`;
+  view.querySelectorAll('.opt').forEach(b=>b.addEventListener('click',()=>{
+    if(answered) return; answered=true;
+    const ok=q.options[+b.dataset.i]===q.answer;
+    record('score',`${q.fu}:${q.han}:ron:child`,ok,Date.now()-t0);
+    b.classList.add(ok?'ok':'ng');
+    if(ok) flashScore++;
+    else view.querySelectorAll('.opt').forEach((x,i)=>{ if(q.options[i]===q.answer) x.classList.add('ok'); });
+    setTimeout(()=>{ if(flashOn&&flashLeft>0) nextFlash(); }, ok?220:900);
+  }));
+}
+function endFlash(){
+  flashOn=false;
+  const m=Store.get(); m.flashBest=Math.max(m.flashBest||0,flashScore); Store.save();
+  view.innerHTML=`
+    <div class="verdict win">
+      <div class="vhead">終了！</div>
+      <div class="flow"><div class="step final"><div class="lbl">正解数</div><div class="big">${flashScore}</div>
+      <div class="lbl">ベスト ${m.flashBest}</div></div></div>
+    </div>
+    <button class="btn" id="again">もう一度</button>
+    <button class="btn ghost" id="back">トップへ</button>`;
+  document.getElementById('again').addEventListener('click',()=>{flashOn=false;render();document.getElementById('go')?.click();});
+  document.getElementById('back').addEventListener('click',render);
+}
+
+/* ---------- 暗記表 ---------- */
+let tblType='child', tblWin='ron';
+function renderTable(){
+  const fus=[20,25,30,40,50,60,70], hans=[1,2,3,4];
+  const cell=(fu,han)=>{
+    if(!validCombo(fu,han,tblWin)) return '<td style="opacity:.25">—</td>';
+    const r=Engine.calculateScore({playerType:tblType,winType:tblWin,fu,han});
+    return `<td class="${r.rank?'man':''}">${r.notation}</td>`;
+  };
+  const chain = fu => {
+    const arr=[1,2,3,4].filter(h=>validCombo(fu,h,'ron'))
+      .map(h=>Engine.calculateScore({playerType:'child',winType:'ron',fu,han:h}));
+    return `<div class="chain">${arr.map((r,i)=>
+      `<span class="${r.rank?'last':''}">${r.notation}</span>${i<arr.length-1?'<i>→</i>':''}`).join('')}<i>→</i><span class="last">満貫8000</span></div>`;
+  };
+  view.innerHTML=`
+    <div class="seg">
+      <button class="${tblType==='child'?'on':''}" data-t="child">子</button>
+      <button class="${tblType==='dealer'?'on':''}" data-t="dealer">親</button>
+      <button class="${tblWin==='ron'?'on':''}" data-w="ron">ロン</button>
+      <button class="${tblWin==='tsumo'?'on':''}" data-w="tsumo">ツモ</button>
+    </div>
+    <p class="eyebrow">これだけは覚えよう</p>
+    <div class="card">
+      <table class="tbl">
+        <tr><th>符</th><th>1翻</th><th>2翻</th><th>3翻</th><th>4翻</th></tr>
+        ${fus.map(fu=>`<tr><td class="fu">${fu}符</td>${hans.map(h=>cell(fu,h)).join('')}</tr>`).join('')}
+      </table>
+      <p class="vnote" style="margin:12px 0 0">金色は満貫（基本点2000で頭打ち）。${tblWin==='tsumo'?'ツモは「親/子」または「◯◯オール」。':''}</p>
+    </div>
+
+    <h2 class="sec">流れで覚える（子のロン）</h2>
+    <div class="card">
+      <p class="eyebrow" style="margin:0">30符 — 倍々に近い増え方</p>${chain(30)}
+      <p class="eyebrow" style="margin:14px 0 0">40符 — 1300から倍々</p>${chain(40)}
+      <p class="eyebrow" style="margin:14px 0 0">50符</p>${chain(50)}
+    </div>
+
+    <h2 class="sec">満貫になるライン</h2>
+    <div class="card list">
+      ${[20,25,30,40,50,60,70].map(fu=>{
+        let h=1; while(h<=5 && !Engine.calculateScore({playerType:'child',winType:'ron',fu,han:h}).rank) h++;
+        return `<div class="item"><span class="k">${fu}符</span><span class="v">${h}翻で満貫</span></div>`;
+      }).join('')}
+      <p class="vnote" style="margin:6px 0 0">5翻は符に関係なく満貫。4翻でも40符以上、3翻でも70符以上なら満貫になります。</p>
+    </div>
+
+    <h2 class="sec">なぜその点数になるのか</h2>
+    <div class="card">
+      <div class="flow">
+        <div class="row"><span>基本点＝符 × 2 の (翻+2) 乗</span><b>30×2⁵=960</b></div>
+        <div class="arrow">▼</div>
+        <div class="row"><span>子のロンは4倍／親のロンは6倍</span><b>960×4=3840</b></div>
+        <div class="arrow">▼</div>
+        <div class="row"><span>100点単位に切り上げ</span><b>3900</b></div>
+      </div>
+      <p class="vnote" style="margin:12px 0 0">ツモは「親から2倍・子から1倍」を<b>それぞれ</b>切り上げます。親のツモは全員から2倍。</p>
+    </div>`;
+  view.querySelectorAll('[data-t]').forEach(b=>b.addEventListener('click',()=>{tblType=b.dataset.t;render();}));
+  view.querySelectorAll('[data-w]').forEach(b=>b.addEventListener('click',()=>{tblWin=b.dataset.w;render();}));
+}
+
+/* ---------- 成績 ---------- */
+function renderStats(){
+  const m=Store.get();
+  const all=Object.entries(m.stats);
+  const n=all.reduce((s,[,v])=>s+v.n,0), ok=all.reduce((s,[,v])=>s+v.ok,0);
+  const ms=all.reduce((s,[,v])=>s+v.ms,0);
+  const rate=n?Math.round(ok/n*100):0;
+  const weak=all.filter(([,v])=>v.n>=2).map(([k,v])=>({k,r:v.ok/v.n,n:v.n}))
+    .sort((a,b)=>a.r-b.r).slice(0,6);
+  const strong=all.filter(([,v])=>v.n>=2&&v.ok/v.n>=0.8).map(([k,v])=>({k,r:v.ok/v.n,n:v.n}))
+    .sort((a,b)=>b.r-a.r).slice(0,3);
+  const nice = k => {
+    const [kind,key]=k.split('|');
+    if(kind==='score'){ const [fu,han,win,type]=key.split(':');
+      return `${fu}符${han}翻・${type==='dealer'?'親':'子'}の${win==='ron'?'ロン':'ツモ'}`; }
+    if(kind==='fupart') return key;
+    return `符合計 ${key}符`;
+  };
+  view.innerHTML=`
+    <p class="eyebrow">積み上げ</p>
+    <div class="grid2">
+      <div class="stat"><div class="n">${rate}<span style="font-size:14px">%</span></div><div class="l">正解率</div>
+        <div class="bar"><i style="width:${rate}%"></i></div></div>
+      <div class="stat"><div class="n">${n?(ms/n/1000).toFixed(1):'0.0'}<span style="font-size:14px">秒</span></div><div class="l">平均回答時間</div></div>
+      <div class="stat"><div class="n">${m.best||0}</div><div class="l">最高連続正解</div></div>
+      <div class="stat"><div class="n">${n}</div><div class="l">累計問題数</div></div>
+    </div>
+
+    <h2 class="sec">苦手なところ</h2>
+    <div class="card list">
+      ${weak.length? weak.map(w=>`
+        <div>
+          <div class="item"><span class="k">${nice(w.k)}</span><span class="v">${Math.round(w.r*100)}%・${w.n}問</span></div>
+          <div class="bar ${w.r<0.6?'bad':''}"><i style="width:${Math.round(w.r*100)}%"></i></div>
+        </div>`).join('')
+        : '<p class="vnote" style="margin:0">まだデータがありません。点数クイズを2〜3問解くと、ここに弱点が出ます。</p>'}
+    </div>
+
+    ${strong.length?`<h2 class="sec">得意になったところ</h2>
+    <div class="card list">${strong.map(s=>
+      `<div class="item"><span class="k">${nice(s.k)}</span><span class="v">${Math.round(s.r*100)}%</span></div>`).join('')}</div>`:''}
+
+    <h2 class="sec">復習リスト</h2>
+    <div class="card">
+      ${Object.keys(m.wrong).length?
+        `<div class="list">${Object.entries(m.wrong).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,c])=>
+          `<div class="item"><span class="k">${nice(k)}</span><span class="v">${c}回ミス</span></div>`).join('')}</div>
+         <button class="btn" id="redo">苦手だけ出題する</button>`
+        : '<p class="vnote" style="margin:0">間違えた問題がここに溜まります。正解すると消えます。</p>'}
+      <button class="btn ghost" id="reset">記録を消す</button>
+    </div>`;
+  document.getElementById('redo')?.addEventListener('click',()=>{focusWeak=true;tab='quiz';renderTabs();render();});
+  document.getElementById('reset').addEventListener('click',()=>{
+    if(!confirm('これまでの学習記録をすべて消します。よろしいですか？')) return;
+    Store.clear(); paintHeader(); render();
+  });
+}
+
+/* ---------- ルーター ---------- */
+function render(){
+  clearInterval(timerId);
+  if(tab!=='flash'){ flashOn=false; clearInterval(flashTimer); }
+  ({quiz:renderQuiz,fu:renderFu,flash:renderFlash,table:renderTable,stats:renderStats})[tab]();
+}
+(async()=>{ await Store.load(); paintHeader(); renderTabs(); render(); })();
+
+/* Service Worker（オフライン動作） */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
+/* ==========================================================
+   5. 自己テスト（コンソールに結果を出力）
+   ========================================================== */
+(function selfTest(){
+  const cases=[
+    ['child','ron',30,1,1000],['child','ron',30,2,2000],['child','ron',30,3,3900],['child','ron',30,4,7700],
+    ['child','ron',40,1,1300],['child','ron',40,2,2600],['child','ron',40,3,5200],['child','ron',40,4,8000],
+    ['child','ron',50,3,6400],['child','ron',60,3,7700],['child','ron',70,3,8000],['child','ron',25,2,1600],
+    ['dealer','ron',30,3,5800],['dealer','ron',40,3,7700],['child','ron',30,5,8000],['child','ron',30,6,12000],
+    ['child','ron',30,8,16000],['child','ron',30,11,24000],['child','ron',30,13,32000],
+  ];
+  let bad=0;
+  cases.forEach(([t,w,fu,han,want])=>{
+    const got=Engine.calculateScore({playerType:t,winType:w,fu,han}).total;
+    if(got!==want){bad++;console.error(`NG ${fu}符${han}翻 ${t} ${w}: ${got} != ${want}`);}
+  });
+  const n=[['child','tsumo',30,3,'2000/1000'],['dealer','tsumo',30,3,'2000オール'],
+           ['child','tsumo',20,2,'700/400'],['child','tsumo',40,4,'4000/2000']];
+  n.forEach(([t,w,fu,han,want])=>{
+    const got=Engine.calculateScore({playerType:t,winType:w,fu,han}).notation;
+    if(got!==want){bad++;console.error(`NG ${fu}符${han}翻 ${t} ${w}: ${got} != ${want}`);}
+  });
+  console.log(bad?`self-test: ${bad} 件失敗`:'self-test: すべて通過');
+})();
+</script>
+</body>
+</html>
